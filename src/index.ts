@@ -1,25 +1,25 @@
 import "reflect-metadata";
-import { MikroORM } from "@mikro-orm/core"
 import { __prod__ } from "./constants";
-import microConfig from "./mikro-orm.config";
 import express from 'express'
 import {ApolloServer} from 'apollo-server-express';
 import {buildSchema} from 'type-graphql';
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
+import {createConnection} from "typeorm";
+import { Post } from "./entities/Post";
+import { User } from "./entities/User";
 
 const main = async () => {
-    const orm = await MikroORM.init(microConfig);
-    await orm.getMigrator().up();
-
-    //Creating a Post into DB
-    // const post = orm.em.create(Post, {title: 'my first post'});
-    // await orm.em.persistAndFlush(post);
-
-    //Finding the post from the DB
-    // const posts = await orm.em.find(Post, {});
-    // console.log(posts);
+    const conn = createConnection({
+        type: 'postgres',
+        database: 'kredentpost',
+        username: 'postgres',
+        password: 'postgresql',
+        logging: true,
+        synchronize: true,
+        entities: [Post, User]
+    });
 
     const app = express();
 
@@ -28,7 +28,7 @@ const main = async () => {
             resolvers: [HelloResolver, PostResolver, UserResolver],
             validate: false
         }),
-        context: () => ({ em: orm.em })
+        context: () => ({})
     });
 
     await apolloServer.start();

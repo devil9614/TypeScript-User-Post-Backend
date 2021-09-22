@@ -2,7 +2,8 @@ import { User } from "../entities/User";
 import { MyContext } from "../types";
 import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
 import bcrypt from 'bcryptjs';
-// import argon2 from "argon2"
+import { getConnection } from "typeorm";
+
 
 @InputType()
 class UsernamePasswordInput {
@@ -33,10 +34,7 @@ class UserResponse {
 export class UserResolver{
     @Mutation(() => UserResponse)
     async register(
-        @Arg("options") options: UsernamePasswordInput,
-        // @Arg('username') username: string,
-        // @Arg('password') password: string,
-        @Ctx() {em}: MyContext
+        @Arg("options") options: UsernamePasswordInput
     ): Promise<UserResponse>{
         if(options.username.length <= 2){
             return {
@@ -57,13 +55,16 @@ export class UserResolver{
         }
 
         const hashedPassword = bcrypt.hashSync(options.password, 5);
-        const user = em.create(User, {
-            username: options.username, 
-            password: hashedPassword,
-        });
+        let user;
         try {
-            await em.persistAndFlush(user);
+            const result = await getConnection().createQueryBuilder().insert().into(User).values({
+                username: options.username,
+                password: hashedPassword
+            }).returning('*').execute();
+            console.log("result: ", result);
+            user = result.raw;
         } catch(err) {
+            console.log("err: ", err);
             //Duplicate username error
             if(err.code === '23505'){
                 return {
@@ -80,10 +81,9 @@ export class UserResolver{
 
     @Mutation(() => UserResponse)
     async login(
-        @Arg("options") options: UsernamePasswordInput,
-        @Ctx() {em}: MyContext
+        @Arg("usernameOrEmail") options: UsernamePasswordInput,
     ): Promise<UserResponse> {
-        const user = await em.findOne(User, {username: options.username});
+        const user = await User.findOne(User);
         if(!user){
             return {
                 errors: [{
