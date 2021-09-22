@@ -31,25 +31,51 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver{
-    // @Field()
-    // username: string
-    // @Field()
-    // password: string
-
-    @Mutation(() => User)
+    @Mutation(() => UserResponse)
     async register(
         @Arg("options") options: UsernamePasswordInput,
         // @Arg('username') username: string,
         // @Arg('password') password: string,
         @Ctx() {em}: MyContext
-    ){
+    ): Promise<UserResponse>{
+        if(options.username.length <= 2){
+            return {
+                errors: [{
+                    field: "username",
+                    message: "length must be greater than 2"
+                }],
+            };
+        }
+
+        if(options.password.length <= 5){
+            return {
+                errors: [{
+                    field: "password",
+                    message: "length must be greater than 5"
+                }],
+            };
+        }
+
         const hashedPassword = bcrypt.hashSync(options.password, 5);
         const user = em.create(User, {
             username: options.username, 
             password: hashedPassword,
         });
-        await em.persistAndFlush(user);
-        return user;
+        try {
+            await em.persistAndFlush(user);
+        } catch(err) {
+            //Duplicate username error
+            if(err.code === '23505'){
+                return {
+                    errors: [{
+                        field: 'username',
+                        message: 'username already exists'
+                    }]
+                };                
+            }
+        }
+        
+        return { user };
     }
 
     @Mutation(() => UserResponse)
