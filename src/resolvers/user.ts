@@ -1,6 +1,5 @@
 import { User } from "../entities/User";
-import { MyContext } from "../types";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
+import { Arg, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
 import bcrypt from 'bcryptjs';
 import { getConnection } from "typeorm";
 
@@ -57,14 +56,16 @@ export class UserResolver{
         const hashedPassword = bcrypt.hashSync(options.password, 5);
         let user;
         try {
+            // Inserting User
+            // User.create({}).save()
             const result = await getConnection().createQueryBuilder().insert().into(User).values({
                 username: options.username,
                 password: hashedPassword
             }).returning('*').execute();
             console.log("result: ", result);
-            user = result.raw;
+            user = result.raw[0];
         } catch(err) {
-            console.log("err: ", err);
+            // console.log("err: ", err);
             //Duplicate username error
             if(err.code === '23505'){
                 return {
@@ -81,9 +82,10 @@ export class UserResolver{
 
     @Mutation(() => UserResponse)
     async login(
-        @Arg("usernameOrEmail") options: UsernamePasswordInput,
+        @Arg("options") options: UsernamePasswordInput
     ): Promise<UserResponse> {
-        const user = await User.findOne(User);
+        // const user = await User.findOne(User);
+        const user = await User.findOne({where: {username: options.username}});
         if(!user){
             return {
                 errors: [{
@@ -93,7 +95,7 @@ export class UserResolver{
                 ],
             };
         }
-        const valid = bcrypt.compareSync(user.password, options.password);
+        const valid = bcrypt.compareSync(options.password, user.password);
         if(!valid){
             return {
                 errors: [{
