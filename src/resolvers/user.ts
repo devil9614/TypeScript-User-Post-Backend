@@ -1,7 +1,9 @@
 import { User } from "../entities/User";
-import { Arg, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
 import bcrypt from 'bcryptjs';
+import {sign} from "jsonwebtoken";
 import { getConnection } from "typeorm";
+import { MyContext } from "src/types";
 
 
 @InputType()
@@ -18,6 +20,12 @@ class FieldError {
     field: string
     @Field()
     message: string
+}
+
+@ObjectType()
+class LoginResponse{
+    @Field()
+    accessToken: string
 }
 
 @ObjectType()
@@ -80,33 +88,34 @@ export class UserResolver{
         return { user };
     }
 
-    @Mutation(() => UserResponse)
+    @Mutation(() => LoginResponse)
     async login(
-        @Arg("options") options: UsernamePasswordInput
-    ): Promise<UserResponse> {
+        @Arg("options") options: UsernamePasswordInput,
+        @Ctx() {res}: MyContext
+    ): Promise<LoginResponse> {
         // const user = await User.findOne(User);
         const user = await User.findOne({where: {username: options.username}});
         if(!user){
-            return {
-                errors: [{
-                    field: "username",
-                    message: "Username does not exist"
-                    },
-                ],
-            };
+            throw new Error("User does not exist");
         }
         const valid = bcrypt.compareSync(options.password, user.password);
         if(!valid){
-            return {
-                errors: [{
-                    field: "password",
-                    message: "Incorrect Password"
-                    },
-                ],
-            };
+            throw new Error("Incorrect Password");
         } 
+
+        res.cookie(
+            'jid', 
+            sign({ userId: user.id,}, 'wkjfjfweifyowie', 
+            {
+                expiresIn: '7d'
+            }),
+            {
+                httpOnly: true
+            }
+        );
+
         return {
-            user
+            accessToken: sign({ userId: user.id,}, 'uwdgiluewfg', {expiresIn: '15m'})
         };
     }
 }
