@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import "reflect-metadata";
 import { __prod__ } from "./constants";
 import express from 'express'
@@ -22,6 +23,9 @@ const main = async () => {
     });
 
     const app = express();
+
+    // console.log(process.env.ACCESS_TOKEN_SECRET);
+    // console.log(process.env.REFRESH_TOKEN_SECRET);
 
     const apolloServer = new ApolloServer({
         schema: await buildSchema({

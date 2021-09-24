@@ -1,9 +1,10 @@
 import { User } from "../entities/User";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver, UseMiddleware } from "type-graphql";
 import bcrypt from 'bcryptjs';
-import {sign} from "jsonwebtoken";
 import { getConnection } from "typeorm";
-import { MyContext } from "src/types";
+import { MyContext } from "../MyContext";
+import { createAccessToken, createRefreshToken } from "../auth";
+import { isAuth } from "../isAuth";
 
 
 @InputType()
@@ -105,17 +106,23 @@ export class UserResolver{
 
         res.cookie(
             'jid', 
-            sign({ userId: user.id,}, 'wkjfjfweifyowie', 
-            {
-                expiresIn: '7d'
-            }),
+            createRefreshToken(user),
             {
                 httpOnly: true
             }
         );
 
         return {
-            accessToken: sign({ userId: user.id,}, 'uwdgiluewfg', {expiresIn: '15m'})
+            accessToken: createAccessToken(user)
         };
+    }
+
+    @Query(() => String)
+    @UseMiddleware(isAuth)
+    validUser(
+        @Ctx() {payload}: MyContext
+    ){
+        console.log(payload);
+        return `You are Authorize User! Your USER ID is: ${payload?.userId}`;
     }
 }
