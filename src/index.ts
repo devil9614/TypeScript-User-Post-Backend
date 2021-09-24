@@ -10,6 +10,9 @@ import { UserResolver } from "./resolvers/user";
 import {createConnection} from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
+import { createAccessToken, createRefreshToken } from './auth';
+import { verify } from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
 
 const main = async () => {
     const conn = createConnection({
@@ -22,7 +25,44 @@ const main = async () => {
         entities: [Post, User]
     });
 
+
     const app = express();
+    app.use(cookieParser());
+    
+    // This route is specifically designed to handle refreshing the JWT Token
+    // "/refreshtoken"
+    app.post("/refreshtoken", async (req,res) => {
+        console.log(req.cookies);
+        console.log(req.headers);
+        const token = req.cookies.jid;
+        if(!token) {
+            return res.send({ ok: false, accessToken: "" });
+        }
+
+        let payload: any = null;
+        try {
+            payload = verify(token, process.env.REFRESH_TOKEN_SECRET!);
+        } catch(err) {
+            console.log(err);
+            return res.send({ ok: false, accessToken: "" });
+        }
+
+        // If the token is valid, then we can send back an access token
+        const user = await User.findOne({ id: payload.userId });
+
+        if(!user) {
+            return res.send({ ok: false, accessToken: "" });
+        }
+
+        res.cookie('jid', createRefreshToken(user),
+            {
+                httpOnly: true
+            });
+
+            
+
+        return res.send({ ok: true, accessToken: createAccessToken(user) });
+    });
 
     // console.log(process.env.ACCESS_TOKEN_SECRET);
     // console.log(process.env.REFRESH_TOKEN_SECRET);
