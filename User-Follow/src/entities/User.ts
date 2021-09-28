@@ -24,12 +24,12 @@ export class User extends BaseEntity{
     password!: string;
 
     @Field()
-    @Column()
+    @Column( {nullable: true} )
     followers: string;
     // followers: [{username: String}];
 
     @Field()
-    @Column()
+    @Column( {nullable: true} )
     following: string;
     // following: [{username: String}];
 
